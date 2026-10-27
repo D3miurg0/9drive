@@ -2,15 +2,21 @@ import { Router } from 'express'
 import { exec, spawn } from 'child_process'
 import path from 'path'
 import fs from 'fs'
-import { requireAuth } from '../../middleware/auth.middleware.js'
+import { requireAdmin, requireAuth } from '../../middleware/auth.middleware.js'
 import { prisma } from '../../config/prisma.js'
 import { decryptText, encryptText } from '../../utils/crypto.js'
 import Busboy from 'busboy'
 
 export const systemRouter = Router()
 
+// SECURITY: every route below is admin-only (requireAdmin).
+const isDesktop = process.env.DESKTOP_MODE === 'true'
+const isSqlite = () => /^(file|sqlite):/.test(process.env.DATABASE_URL ?? '')
+const SQLITE_MAGIC = Buffer.from('SQLite format 3\0', 'binary')
 
-systemRouter.post('/update', requireAuth, (req, res, next) => {
+
+systemRouter.post('/update', requireAuth, requireAdmin, (req, res, next) => {
+  if (isDesktop) return res.status(400).json({ code: 'UPDATE_DISABLED', message: 'The desktop app updates by installing a new release.' })
   const projectRoot = path.resolve(process.cwd(), '..')
   const updateScript = path.join(projectRoot, 'update.sh')
 
@@ -76,7 +82,7 @@ systemRouter.post('/update', requireAuth, (req, res, next) => {
   })
 })
 
-systemRouter.get('/update-log', requireAuth, (req, res) => {
+systemRouter.get('/update-log', requireAuth, requireAdmin, (req, res) => {
   const projectRoot = path.resolve(process.cwd(), '..')
   const logFile = path.join(projectRoot, 'update.log')
 
@@ -100,14 +106,15 @@ systemRouter.get('/update-log', requireAuth, (req, res) => {
   }
 })
 
-systemRouter.get('/google-config', requireAuth, async (req, res, next) => {
+systemRouter.get('/google-config', requireAuth, requireAdmin, async (req, res, next) => {
   try {
     const config = await prisma.providerConfig.findFirst({
       where: { userId: null, provider: 'google_drive', status: 'active' },
       orderBy: { createdAt: 'desc' }
     })
 
-    const defaultRedirect = `${req.protocol}://${req.get('host')}/connected-accounts/google/callback`
+    const mountPrefix = req.baseUrl.replace(/\/system$/, '')
+    const defaultRedirect = `${req.protocol}://${req.get('host')}${mountPrefix}/connected-accounts/google/callback`
 
     if (!config) {
       return res.json({
@@ -135,7 +142,7 @@ systemRouter.get('/google-config', requireAuth, async (req, res, next) => {
   }
 })
 
-systemRouter.post('/google-config', requireAuth, async (req, res, next) => {
+systemRouter.post('/google-config', requireAuth, requireAdmin, async (req, res, next) => {
   try {
     const { clientId, clientSecret, redirectUri } = req.body
 
@@ -200,7 +207,8 @@ systemRouter.post('/google-config', requireAuth, async (req, res, next) => {
   }
 })
 
-systemRouter.get('/backup', requireAuth, (req, res, next) => {
+systemRouter.get('/backup', requireAuth, requireAdmin, (req, res, next) => {
+  if (!isSqlite()) return res.status(400).json({ code: 'UNSUPPORTED_DATABASE', message: 'Backup/restore from the UI is only available with the SQLite database (desktop app). Use mysqldump for MySQL.' })
   try {
     const dbPath = getDatabaseFilePath()
     if (!fs.existsSync(dbPath)) {
@@ -215,7 +223,8 @@ systemRouter.get('/backup', requireAuth, (req, res, next) => {
   }
 })
 
-systemRouter.post('/restore', requireAuth, (req, res, next) => {
+systemRouter.post('/restore', requireAuth, requireAdmin, (req, res, next) => {
+  if (!isSqlite()) return res.status(400).json({ code: 'UNSUPPORTED_DATABASE', message: 'Backup/restore from the UI is only available with the SQLite database (desktop app). Use mysqldump for MySQL.' })
   try {
     const contentType = req.headers['content-type']
     if (!contentType?.includes('multipart/form-data')) {
@@ -235,6 +244,16 @@ systemRouter.post('/restore', requireAuth, (req, res, next) => {
 
       writeStream.on('finish', async () => {
         try {
+          // SECURITY: only accept real SQLite files
+          const fd = fs.openSync(tempDbPath, 'r')
+          const header = Buffer.alloc(16)
+          fs.readSync(fd, header, 0, 16, 0)
+          fs.closeSync(fd)
+          if (!header.equals(SQLITE_MAGIC)) {
+            fs.unlinkSync(tempDbPath)
+            return res.status(400).json({ code: 'INVALID_BACKUP', message: 'The uploaded file is not a SQLite database.' })
+          }
+
           // Disconnect prisma client first to release database lock
           await prisma.$disconnect()
 

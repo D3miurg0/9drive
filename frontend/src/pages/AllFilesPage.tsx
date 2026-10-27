@@ -789,7 +789,7 @@ export function AllFilesPage() {
             <div className="mt-4 pt-4 border-t border-slate-100 dark:border-slate-800 grid gap-3">
               <div>
                 <label className="text-xs font-bold text-slate-500 block mb-1">Google Drive Direct Link (Public Access)</label>
-                <p className="text-xs text-slate-500 mb-2">Configure this file to be publicly accessible on Google Drive so external tools can edit/download it.</p>
+                <p className="text-xs text-slate-500 mb-2">Anyone with the link will be able to view and download this file (read-only). Editing is never granted.</p>
               </div>
               {gdrivePublicUrl ? (
                 <div className="grid gap-2">
@@ -815,7 +815,7 @@ export function AllFilesPage() {
                   }}
                   className="w-full text-blue-700 bg-blue-50 border-blue-200 hover:bg-blue-100 dark:text-blue-400 dark:bg-blue-950/30 dark:border-blue-900/50"
                 >
-                  {makingPublic ? 'Making Public...' : 'Make Public & Copy GDrive Link'}
+                  {makingPublic ? 'Making Public...' : 'Make Public (view-only) & Copy Link'}
                 </Button>
               )}
             </div>

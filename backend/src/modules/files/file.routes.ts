@@ -1,5 +1,6 @@
 import { Router } from 'express'
 import { google } from 'googleapis'
+import { removeAnyonePermissions } from '../google/drive-permissions.js'
 import { z } from 'zod'
 import { prisma } from '../../config/prisma.js'
 import { env } from '../../config/env.js'
@@ -301,6 +302,20 @@ fileRouter.post('/:id/share', async (req: AuthRequest, res, next) => {
   }
 })
 
+fileRouter.delete('/:id/public-permission', requireAuth, async (req: AuthRequest, res, next) => {
+  try {
+    const fileId = String(req.params.id)
+    const file = await prisma.file.findFirstOrThrow({ where: { id: fileId, userId: req.user!.id }, include: { connectedAccount: true } })
+    if (file.provider !== 'google_drive') return res.status(400).json({ code: 'UNSUPPORTED_PROVIDER', message: 'Only Google Drive files have public permissions.' })
+    const auth = await getAuthedGoogleClient(file.connectedAccount)
+    const drive = google.drive({ version: 'v3', auth })
+    const removed = await removeAnyonePermissions(drive, file.providerFileId)
+    return res.json({ status: 'ok', removed })
+  } catch (error) {
+    return next(error)
+  }
+})
+
 fileRouter.post('/:id/public-permission', requireAuth, async (req: AuthRequest, res, next) => {
   try {
     const fileId = String(req.params.id)
@@ -310,10 +325,11 @@ fileRouter.post('/:id/public-permission', requireAuth, async (req: AuthRequest, 
     }
     const auth = await getAuthedGoogleClient(file.connectedAccount)
     const drive = google.drive({ version: 'v3', auth })
+    // SECURITY: explicit public sharing is view-only ("reader"), never "writer".
     await drive.permissions.create({
       fileId: file.providerFileId,
       requestBody: {
-        role: 'writer',
+        role: 'reader',
         type: 'anyone'
       }
     })
@@ -355,19 +371,8 @@ fileRouter.get('/:id/view-url', async (req: AuthRequest, res, next) => {
     const auth = await getAuthedGoogleClient(file.connectedAccount)
     const drive = google.drive({ version: 'v3', auth })
 
-    // Automatically set permission to public writer when retrieving/copying the view URL!
-    try {
-      await drive.permissions.create({
-        fileId: file.providerFileId,
-        requestBody: {
-          role: 'writer',
-          type: 'anyone'
-        }
-      })
-    } catch (err: any) {
-      console.error('Failed to make Google Drive file public during view-url retrieval:', err.message || err)
-    }
-
+    // SECURITY: opening a file no longer changes its sharing. The owner's
+    // own Google session can open the private webViewLink.
     const metadata = await drive.files.get({ fileId: file.providerFileId, fields: 'webViewLink,webContentLink' })
     return res.json({ url: metadata.data.webViewLink ?? metadata.data.webContentLink })
   } catch (error) {

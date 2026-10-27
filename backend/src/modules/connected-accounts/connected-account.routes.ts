@@ -8,6 +8,7 @@ import { decryptText, encryptText, hashToken, randomToken } from '../../utils/cr
 import { hashPassword } from '../../utils/password.js'
 import { createOAuthClient, syncGoogleQuota } from '../google/google.service.js'
 import { syncS3Quota, testS3Connection } from '../s3/s3.service.js'
+import { decideRegistration } from '../../utils/registration.js'
 
 export const connectedAccountRouter = Router()
 
@@ -192,11 +193,14 @@ connectedAccountRouter.get('/google/callback', async (req, res, next) => {
 
     if (oauthState.flow === 'login') {
       const name = profile.data.name || email.split('@')[0] || 'Google User'
-      const user = await prisma.user.upsert({
-        where: { email },
-        create: { email, name, passwordHash: await hashPassword(randomToken(32)) },
-        update: { name },
-      })
+      let user = await prisma.user.findUnique({ where: { email } })
+      if (user) {
+        user = await prisma.user.update({ where: { id: user.id }, data: { name } })
+      } else {
+        const decision = await decideRegistration(email)
+        if (!decision.allowed) return res.redirect(`${env.FRONTEND_URL}/google-auth?status=registration_closed`)
+        user = await prisma.user.create({ data: { email, name, role: decision.role, passwordHash: await hashPassword(randomToken(32)) } })
+      }
       const existingAccount = await prisma.connectedAccount.findUnique({ where: { userId_provider_providerAccountId: { userId: user.id, provider: 'google_drive', providerAccountId } } })
       const refreshTokenEncrypted = tokens.refresh_token ? encryptText(tokens.refresh_token) : existingAccount?.refreshTokenEncrypted
       if (!refreshTokenEncrypted) {

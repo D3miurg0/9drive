@@ -225,19 +225,8 @@ export async function handleUpload(req: AuthRequest, res: Response, next: NextFu
           uploadedMimeType = uploaded.data.mimeType ?? meta.mimeType
           logUpload('google upload completed', { sessionId: session.id, accountId: account.id, fileName })
 
-          // Make the file public (anyone with link can edit/download)
-          try {
-            await drive.permissions.create({
-              fileId: providerFileId,
-              requestBody: {
-                role: 'writer',
-                type: 'anyone'
-              }
-            })
-            logUpload('google file permissions set to public writer', { sessionId: session.id, providerFileId })
-          } catch (err: any) {
-            console.error('Failed to make Google Drive file public:', err.message || err)
-          }
+          // SECURITY: uploaded files stay private. Sharing is an explicit user action
+          // (POST /files/:id/public-permission), and is read-only.
         }
 
         if (streamedBytes !== meta.sizeBytes) {
@@ -502,18 +491,7 @@ uploadRouter.put('/resumable/chunk/:id', requireAuth, async (req: AuthRequest, r
       // Completed! Parse metadata
       const fileMeta = await putRes.json() as { id: string; name: string; mimeType: string }
 
-      // Make the file public (anyone with link can edit/download)
-      try {
-        await drive.permissions.create({
-          fileId: fileMeta.id,
-          requestBody: {
-            role: 'writer',
-            type: 'anyone'
-          }
-        })
-      } catch (err: any) {
-        console.error('Failed to make Google Drive resumable file public:', err.message || err)
-      }
+      // SECURITY: resumable uploads stay private too (see note above).
 
       let existingFile = await prisma.file.findFirst({
         where: { providerFileId: fileMeta.id, userId: req.user!.id }

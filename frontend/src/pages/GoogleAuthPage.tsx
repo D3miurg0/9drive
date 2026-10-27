@@ -15,6 +15,10 @@ export function GoogleAuthPage() {
   const status = params.get('status')
 
   useEffect(() => {
+    if (status === 'registration_closed') {
+      setMessage('Registration is closed on this instance. Ask the administrator for an invite.')
+      return
+    }
     if (status === 'error' || !token) {
       setMessage('Google sign-in failed. Please try again.')
       return
