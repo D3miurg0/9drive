@@ -1,3 +1,5 @@
+> **Fork seguro / Secure fork:** this fork fixes the public-writer file permissions and the missing admin role, and adds a macOS/Windows desktop app. See **[FORK-SEGURO.md](FORK-SEGURO.md)** (español).
+
 ![9Drive cover](https://i.ibb.co.com/35BySv1C/image.png)
 
 <h1 align="center">9Drive</h1>

@@ -7,6 +7,8 @@ export default defineConfig({
   plugins: [
     react(),
     VitePWA({
+      // The desktop app is served locally; a service worker would only get in the way of OAuth callbacks.
+      disable: process.env.VITE_DESKTOP === 'true',
       registerType: 'autoUpdate',
       includeAssets: ['favicon.svg', 'pwa-192x192.svg', 'pwa-512x512.svg', 'maskable-icon.svg'],
       manifest: {
@@ -26,7 +28,7 @@ export default defineConfig({
         ],
       },
       workbox: {
-        navigateFallbackDenylist: [/^\/(auth|connected-accounts|files|folders|invites|provider-configs|public|storage|uploads)(\/|$)/],
+        navigateFallbackDenylist: [/^\/(api|auth|connected-accounts|files|folders|invites|provider-configs|public|storage|uploads)(\/|$)/],
         globPatterns: ['**/*.{js,css,html,svg,ico,png,webp,woff2}'],
       },
     }),
