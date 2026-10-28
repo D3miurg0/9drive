@@ -9,7 +9,8 @@ import { apiFetch } from '@/lib/api'
 import { setAuthSession, type AuthUser } from '@/lib/auth'
 
 type AuthResponse = { accessToken: string; refreshToken: string; user: AuthUser }
-const recaptchaSiteKey = import.meta.env.VITE_RECAPTCHA_SITE_KEY?.trim()
+// The desktop app runs on localhost, where a hosted site's reCAPTCHA key is never valid.
+const recaptchaSiteKey = import.meta.env.VITE_DESKTOP === 'true' ? '' : import.meta.env.VITE_RECAPTCHA_SITE_KEY?.trim()
 
 declare global {
   interface Window {

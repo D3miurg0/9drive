@@ -1,7 +1,7 @@
 {
   "name": "9drive-secure-desktop",
   "productName": "9Drive",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "9Drive (security-hardened fork) as a desktop app for macOS and Windows.",
   "license": "Apache-2.0",
   "main": "main.cjs",
@@ -20,24 +20,57 @@
   "build": {
     "appId": "io.github.ninedrive.secure",
     "productName": "9Drive",
-    "directories": { "output": "release", "buildResources": "build" },
-    "files": ["main.cjs", "package.json"],
+    "directories": {
+      "output": "release",
+      "buildResources": "build"
+    },
+    "files": [
+      "main.cjs",
+      "package.json"
+    ],
     "extraResources": [
-      { "from": "../backend/dist", "to": "backend/dist" },
-      { "from": "../backend/node_modules", "to": "backend/node_modules", "filter": ["**/*"] },
-      { "from": "../backend/package.json", "to": "backend/package.json" },
-      { "from": "../backend/prisma/sqlite", "to": "backend/prisma/sqlite" },
-      { "from": "../frontend/dist-desktop", "to": "frontend" }
+      {
+        "from": "../backend/dist",
+        "to": "backend/dist"
+      },
+      {
+        "from": "../backend/node_modules",
+        "to": "backend/node_modules",
+        "filter": [
+          "**/*"
+        ]
+      },
+      {
+        "from": "../backend/package.json",
+        "to": "backend/package.json"
+      },
+      {
+        "from": "../backend/prisma/sqlite",
+        "to": "backend/prisma/sqlite"
+      },
+      {
+        "from": "../frontend/dist-desktop",
+        "to": "frontend"
+      }
     ],
     "mac": {
-      "target": ["dmg", "zip"],
+      "target": [
+        "dmg",
+        "zip"
+      ],
       "category": "public.app-category.productivity",
       "artifactName": "9Drive-${version}-mac-${arch}.${ext}"
     },
     "win": {
-      "target": ["nsis"],
+      "target": [
+        "nsis"
+      ],
       "artifactName": "9Drive-${version}-windows-setup.${ext}"
     },
-    "nsis": { "oneClick": false, "allowToChangeInstallationDirectory": true, "deleteAppDataOnUninstall": false }
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "deleteAppDataOnUninstall": false
+    }
   }
 }

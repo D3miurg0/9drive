@@ -22,6 +22,6 @@ run('npm', ['run', 'build'], backend)
 run('npm', ['prune', '--omit=dev', '--no-audit', '--no-fund'], backend)
 
 run('npm', ['ci', '--no-audit', '--no-fund'], frontend)
-run('npx', ['vite', 'build', '--outDir', 'dist-desktop', '--emptyOutDir'], frontend, { VITE_DESKTOP: 'true' })
+run('npx', ['vite', 'build', '--outDir', 'dist-desktop', '--emptyOutDir'], frontend, { VITE_DESKTOP: 'true', VITE_RECAPTCHA_SITE_KEY: '' })
 
 console.log('\nDesktop resources ready. Next: cd desktop && npm ci && npm run dist')
